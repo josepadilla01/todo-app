@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -15,29 +17,27 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class TodoService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TodoService.class);
 
-    private final AtomicLong nextId = new AtomicLong(System.currentTimeMillis());
-    private final List<Todo> todos = new ArrayList<>(List.of(
-            new Todo(1, "Review project goals", false),
-            new Todo(2, "Send follow-up email", true)
-    ));
+    private final AtomicLong nextId = new AtomicLong();
+    private final Map<String, List<Todo>> todosByUser = new HashMap<>();
 
-    public synchronized List<Todo> findAll() {
-        return List.copyOf(todos);
+    public synchronized List<Todo> findAll(String userId) {
+        return List.copyOf(todosFor(userId));
     }
 
-    public synchronized Todo create(TodoRequest request) {
+    public synchronized Todo create(String userId, TodoRequest request) {
         String text = request == null || request.text() == null ? "" : request.text().trim();
         if (text.isEmpty()) {
             throw new IllegalArgumentException("Todo text is required.");
         }
 
         Todo todo = new Todo(nextId.incrementAndGet(), text, false);
-        todos.add(todo);
+        todosFor(userId).add(todo);
         LOGGER.info("Todo created: id={}", todo.id());
         return todo;
     }
 
-    public synchronized Optional<Todo> update(long id, TodoRequest request) {
+    public synchronized Optional<Todo> update(String userId, long id, TodoRequest request) {
+        List<Todo> todos = todosFor(userId);
         for (int index = 0; index < todos.size(); index++) {
             Todo current = todos.get(index);
             if (current.id() != id) {
@@ -57,7 +57,8 @@ public final class TodoService {
         return Optional.empty();
     }
 
-    public synchronized Optional<Todo> delete(long id) {
+    public synchronized Optional<Todo> delete(String userId, long id) {
+        List<Todo> todos = todosFor(userId);
         for (int index = 0; index < todos.size(); index++) {
             Todo todo = todos.get(index);
             if (todo.id() == id) {
@@ -67,5 +68,12 @@ public final class TodoService {
             }
         }
         return Optional.empty();
+    }
+
+    private List<Todo> todosFor(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("Authenticated user is required.");
+        }
+        return todosByUser.computeIfAbsent(userId, key -> new ArrayList<>());
     }
 }

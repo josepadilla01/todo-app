@@ -1,52 +1,68 @@
 const loginView = document.getElementById('loginView');
 const todoView = document.getElementById('todoView');
-const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
 const todoForm = document.getElementById('todoForm');
 const todoInput = document.getElementById('todoInput');
 const todoList = document.getElementById('todoList');
-const logoutBtn = document.getElementById('logoutBtn');
+const welcomeMessage = document.getElementById('welcomeMessage');
+const logoutCsrfToken = document.getElementById('logoutCsrfToken');
 
 const state = {
   authenticated: false,
+  csrfToken: null,
 };
 
 async function apiRequest(url, options = {}) {
+  const { headers: optionHeaders = {}, ...requestOptions } = options;
+  const method = requestOptions.method || 'GET';
   const response = await fetch(url, {
+    ...requestOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...(method !== 'GET' && state.csrfToken
+        ? { 'X-XSRF-TOKEN': state.csrfToken }
+        : {}),
+      ...optionHeaders,
     },
-    ...options,
+    credentials: 'same-origin',
   });
 
-  const data = await response.json();
+  if (response.status === 401) {
+    setView(false);
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    throw new Error(data.message || 'Request failed.');
+    throw new Error((data && data.message) || 'Request failed.');
   }
 
   return data;
 }
 
-function setView(isAuthenticated) {
+function setView(isAuthenticated, username = '') {
   state.authenticated = isAuthenticated;
   loginView.classList.toggle('hidden', isAuthenticated);
   todoView.classList.toggle('hidden', !isAuthenticated);
+  welcomeMessage.textContent = isAuthenticated ? `Signed in as ${username}` : '';
 
   if (!isAuthenticated) {
-    loginForm.reset();
-    loginError.textContent = '';
+    todoList.replaceChildren();
   }
 }
 
 function renderTodos(items) {
-  todoList.innerHTML = '';
+  todoList.replaceChildren();
 
   if (!items.length) {
     const emptyItem = document.createElement('li');
     emptyItem.className = 'todo-item';
-    emptyItem.innerHTML = '<span class="todo-text">No tasks yet.</span>';
+    const emptyText = document.createElement('span');
+    emptyText.className = 'todo-text';
+    emptyText.textContent = 'No tasks yet.';
+    emptyItem.appendChild(emptyText);
     todoList.appendChild(emptyItem);
     return;
   }
@@ -55,22 +71,33 @@ function renderTodos(items) {
     const item = document.createElement('li');
     item.className = `todo-item ${todo.done ? 'completed' : ''}`;
 
-    item.innerHTML = `
-      <div class="todo-main">
-        <input type="checkbox" class="checkbox" ${todo.done ? 'checked' : ''} />
-        <span class="todo-text">${todo.text}</span>
-      </div>
-      <div class="todo-actions">
-        <button class="complete" type="button">${todo.done ? 'Undo' : 'Done'}</button>
-        <button class="secondary update" type="button">Update</button>
-        <button class="delete" type="button">Delete</button>
-      </div>
-    `;
+    const main = document.createElement('div');
+    main.className = 'todo-main';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'checkbox';
+    checkbox.checked = todo.done;
+    const text = document.createElement('span');
+    text.className = 'todo-text';
+    text.textContent = todo.text;
+    main.append(checkbox, text);
 
-    const checkbox = item.querySelector('.checkbox');
-    const doneBtn = item.querySelector('.complete');
-    const updateBtn = item.querySelector('.update');
-    const deleteBtn = item.querySelector('.delete');
+    const actions = document.createElement('div');
+    actions.className = 'todo-actions';
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'complete';
+    doneBtn.type = 'button';
+    doneBtn.textContent = todo.done ? 'Undo' : 'Done';
+    const updateBtn = document.createElement('button');
+    updateBtn.className = 'secondary update';
+    updateBtn.type = 'button';
+    updateBtn.textContent = 'Update';
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete';
+    deleteBtn.type = 'button';
+    deleteBtn.textContent = 'Delete';
+    actions.append(doneBtn, updateBtn, deleteBtn);
+    item.append(main, actions);
 
     checkbox.addEventListener('change', () => toggleTodo(todo.id, checkbox.checked));
     doneBtn.addEventListener('click', () => toggleTodo(todo.id, !todo.done));
@@ -90,24 +117,21 @@ async function loadTodos() {
   }
 }
 
-loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-
+async function loadAuthState() {
   try {
-    await apiRequest('/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password }),
-    });
-
-    setView(true);
-    loadTodos();
+    const auth = await apiRequest('/api/auth');
+    state.csrfToken = auth.csrfToken;
+    logoutCsrfToken.name = auth.csrfParameterName;
+    logoutCsrfToken.value = auth.csrfToken;
+    setView(auth.authenticated, auth.username || '');
+    loginError.textContent = '';
+    if (auth.authenticated) {
+      await loadTodos();
+    }
   } catch (error) {
     loginError.textContent = error.message;
   }
-});
+}
 
 todoForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -176,8 +200,5 @@ async function deleteTodo(id) {
   }
 }
 
-logoutBtn.addEventListener('click', () => {
-  setView(false);
-});
-
 setView(false);
+loadAuthState();

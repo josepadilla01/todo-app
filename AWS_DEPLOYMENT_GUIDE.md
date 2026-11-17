@@ -136,6 +136,35 @@ This opens your app in the default browser at the Elastic Beanstalk URL.
 
 ## Configuration Files
 
+### Amazon Cognito sign-in
+
+The app uses Spring Security's OAuth 2.0 authorization-code flow. In the Cognito app client:
+
+1. Enable the authorization-code grant and the `openid`, `email`, and `phone` scopes.
+2. Enable self-service sign-up if users should be able to create accounts. The app's sign-in link opens Cognito's managed login page, which provides the sign-up option.
+3. Add `https://<app-host>/login/oauth2/code/cognito` as an allowed callback URL. For local development, use `http://localhost:5000/login/oauth2/code/cognito`.
+4. Add the app's root URL (for example, `https://<app-host>/`) as an allowed sign-out URL.
+5. Set the Cognito app client domain and configure these environment variables for the application:
+
+   - `COGNITO_CLIENT_ID`
+   - `COGNITO_CLIENT_SECRET` (keep it out of source control)
+   - `COGNITO_ISSUER_URI` (for example, `https://cognito-idp.us-east-1.amazonaws.com/<user-pool-id>`)
+   - `COGNITO_DOMAIN` (the HTTPS Cognito managed-login domain, without a path)
+   - `COGNITO_LOGOUT_URI` (the exact allowed sign-out URL, including its trailing slash if configured that way)
+
+For local development, the values from the provided Cognito instructions are:
+
+```powershell
+$env:COGNITO_CLIENT_ID = '3slscn73sf9gfperki4paeda9'
+$env:COGNITO_ISSUER_URI = 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_YHEz7v3CD'
+$env:COGNITO_DOMAIN = 'https://<your-cognito-domain>.auth.us-east-1.amazoncognito.com'
+$env:COGNITO_LOGOUT_URI = 'http://localhost:5000/'
+```
+
+Set `COGNITO_CLIENT_SECRET` securely in the current environment without committing it, then start the app from `todo-app-rest` with `mvn spring-boot:run`. For Elastic Beanstalk, configure these as environment properties and store the client secret in a protected secret store. The OAuth callback must target the Spring Boot application host, not a separate static-site hostname.
+
+The todo API requires an authenticated Cognito session, uses CSRF protection for state-changing requests, and keeps each signed-in user's in-memory todo list separate. Todo data is still lost when the application restarts.
+
 ### Create `.ebignore` (in project root)
 
 Tells EB what to ignore (similar to .gitignore):

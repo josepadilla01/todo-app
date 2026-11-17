@@ -9,25 +9,22 @@
   <body>
     <div class="app-shell">
       <section id="loginView" class="card">
-        <h1>Login</h1>
-        <form id="loginForm">
-          <label>
-            Username
-            <input type="text" id="username" name="username" required />
-          </label>
-          <label>
-            Password
-            <input type="password" id="password" name="password" required />
-          </label>
-          <button type="submit">Log In</button>
-        </form>
-        <p id="loginError" class="error-message"></p>
+        <h1>Welcome to To-Do</h1>
+        <p>Sign in or create an account with Amazon Cognito to manage your tasks.</p>
+        <a class="button" href="/oauth2/authorization/cognito">Sign In / Create Account</a>
+        <p id="loginError" class="error-message" role="status"></p>
       </section>
 
       <section id="todoView" class="card hidden">
         <header class="todo-header">
-          <h1>To-Do List</h1>
-          <button id="logoutBtn" class="secondary">Log Out</button>
+          <div>
+            <h1>To-Do List</h1>
+            <p id="welcomeMessage" class="muted"></p>
+          </div>
+          <form action="/logout" method="post">
+            <input id="logoutCsrfToken" type="hidden" name="_csrf" value="" />
+            <button type="submit" class="secondary">Log Out</button>
+          </form>
         </header>
 
         <form id="todoForm" class="todo-form">
