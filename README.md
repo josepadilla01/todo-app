@@ -1,9 +1,8 @@
 # React todo application
 
-This separate project contains a React/Vite frontend and a copy of the Spring
-Boot backend. Cognito sign-in remains on the backend, using a server-side OAuth
-session; the browser does not receive a Cognito client secret. Aurora stores
-todos by Cognito user.
+This project contains a React/Vite frontend and a Spring Boot backend.
+Cognito sign-in uses a server-side OAuth session; the browser does not receive
+a Cognito client secret. Aurora stores todos by Cognito user.
 
 ## Requirements
 
