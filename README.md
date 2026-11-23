@@ -44,10 +44,10 @@ cd backend
 mvn spring-boot:run
 ```
 
-Open `http://localhost:5173/`. Vite proxies `/api`, `/oauth2`, `/login`,
+Open `http://localhost:3000/`. Vite proxies `/api`, `/oauth2`, `/login`,
 and `/logout` to the backend at port 5000. The Cognito app client must allow
-`http://localhost:5173/login/oauth2/code/cognito` as a callback and
-`http://localhost:5173/` as a sign-out URL; set `COGNITO_LOGOUT_URI` to that
+`http://localhost:3000/login/oauth2/code/cognito` as a callback and
+`http://localhost:3000/` as a sign-out URL; set `COGNITO_LOGOUT_URI` to that
 sign-out URL when using Vite. These must match exactly.
 
 ## Build and verification
